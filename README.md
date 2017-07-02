@@ -1,38 +1,52 @@
 # Usage
 
+_In this tutorial function_ ```today($hours = 0, $minutes = 0, $seconds = 0)``` _returns_ ```Carbon``` _date_
+_In this tutorial function_ ```interval($hours = 0, $minutes = 0, $seconds = 0)``` _returns_ ```CarbonInterval```
+
 * Do not forget to set up default timezone, i.e.
 
 ```php
 date_default_timezone_set('Asia/Jerusalem');
 ```
 
-* Instantiate a business day object
+* Instantiate a business day object and fill it with business hours
 
 ```php
-$business_day_starts_at = Carbon::today()->addHours(9);
-$business_day_ends_at   = Carbon::today()->addHours(18);
-
-$business_day = new BusinessDay($business_day_starts_at, $business_day_ends_at);
+$business_day = new BusinessDay;
+$business_day->addBusinessHours(
+    new Period(today( 8, 00), today(14, 00)),
+    new Period(today(16, 00), today(19, 00))
+);
 ```
 
 * Add existing appointments to business day (optional)
 
 ```php
-$business_day->addAppointments(
-    new Appointment(Carbon::today()->addHours(10), Carbon::today()->addHours(11)), // 10:00 - 11:00
-    new Appointment(Carbon::today()->addHours(9), Carbon::today()->addHours(9)->addMinutes(30)), // 9:00 - 9:30
-    new Appointment(Carbon::today()->addHours(11)->addMinutes(45), Carbon::today()->addHours(12)->addMinutes(30)) // 11:45 - 12:30
-);
+$business_day->addOccupiedSlots(
+    new Period(today( 9, 15), today( 9, 30)),
+    new Period(today(10, 30), today(11, 00)),
+    new Period(today(16, 00), today(17, 00)))
+)
 ```
 
-* To test whether new appointment will fit, surround with try/catch, i.e.
+* To test whether new appointment will fit
 
 ```php
-$new_appointment = new Appointment(Carbon::today()->addHours(9, 45), Carbon::today()->addHours(10)->addMinutes(15)); // 9:45 - 10:15
-try {
-    $business_day->addAppointments($new_appointment);
-} catch (OverlappingAppointmentException $e) {
-    $offered_appointment_before = $business_day->offerBefore($new_appointment);
-    $offered_appointment_after = $business_day->offerAfter($new_appointment);
-}
+$desired_period = new Period(today(10, 30), today(11, 30));
+
+$business_day->isAvailableAt($period);
+
+// or
+
+$business_day->isNotAvailableAt($period);
+```
+
+* To get nearest available slot for an appointment
+
+```php
+$available_after = $business_day->closestFor($desired_period);
+
+// or if you want to get available slot BEFORE
+
+$available_before = $business_day->closestFor($desired_period, true);
 ```

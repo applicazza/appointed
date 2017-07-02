@@ -2,11 +2,8 @@
 
 namespace Applicazza\Appointed;
 
-use Applicazza\Appointed\Exceptions\InvalidAppointmentException;
-use Applicazza\Appointed\Exceptions\OverlappingAppointmentException;
-use Applicazza\Appointed\Exceptions\OverlappingBusinessDayHoursException;
-use Carbon\Carbon;
-use Carbon\CarbonInterval;
+use InvalidArgumentException;
+use SplDoublyLinkedList;
 
 /**
  * Class BusinessDay
@@ -15,240 +12,239 @@ use Carbon\CarbonInterval;
 class BusinessDay
 {
     /**
-     * @var \Carbon\Carbon
+     * @var \Applicazza\Appointed\Period[]
      */
-    protected $starts_at;
+    protected $business_hours = [];
 
     /**
-     * @var \Carbon\Carbon
+     * @var \Applicazza\Appointed\Period[]
      */
-    protected $ends_at;
+    protected $occupied_slots = [];
 
     /**
-     * @var \Applicazza\Appointed\Appointment[]
+     * @var \SplDoublyLinkedList
      */
-    protected $appointments = [];
-
-    /**
-     * @var \Applicazza\Appointed\Slot[]
-     */
-    protected $available_slots = [];
+    protected $slots;
 
     /**
      * BusinessDay constructor.
-     * @param \Carbon\Carbon $starts_at
-     * @param \Carbon\Carbon $ends_at
      */
-    public function __construct(Carbon $starts_at, Carbon $ends_at)
+    function __construct()
     {
-        $this->starts_at = $starts_at;
-        $this->ends_at = $ends_at;
+        $this->slots = new SplDoublyLinkedList;
     }
 
     /**
-     * @param \Carbon\Carbon $starts_at
-     * @param \Carbon\CarbonInterval $duration
+     * @param array ...$business_hours
      * @return static
      */
-    public static function make(Carbon $starts_at, CarbonInterval $duration)
+    public function addBusinessHours(... $business_hours)
     {
-        return new static($starts_at, (new Carbon($starts_at))->add($duration));
-    }
+        $pending_business_hours = [];
 
-    /**
-     * @param \Applicazza\Appointed\Appointment $new_appointment
-     * @return $this
-     * @throws \Applicazza\Appointed\Exceptions\OverlappingAppointmentException
-     * @throws \Applicazza\Appointed\Exceptions\OverlappingBusinessDayHoursException
-     */
-    public function addAppointment(Appointment $new_appointment)
-    {
-        if ($new_appointment->isOverlappingWithBusinnessHours($this)) {
-            throw new OverlappingBusinessDayHoursException;
+        foreach ($business_hours as $business_hour_period) {
+
+            if (!is_object($business_hour_period) || get_class($business_hour_period) !== Period::class)
+                throw new InvalidArgumentException();
+
+            $pending_business_hours[] = $business_hour_period;
         }
 
-        foreach ($this->appointments as &$appointment) {
+        if (count($pending_business_hours)) {
 
-            if ($appointment->isOverlappingWith($new_appointment)) {
-                throw new OverlappingAppointmentException;
-            }
+            $this->business_hours = array_merge($this->business_hours, $pending_business_hours);
+
+            $this->sortBusinessHours();
+
+            $this->rebuild();
+
         }
 
-        $this->appointments[] = $new_appointment;
-        $this->sortAppointments();
-        $this->calculateEmptySlots();
         return $this;
     }
 
     /**
-     * Sorts appointments
+     * @return \Applicazza\Appointed\Period[]
      */
-    protected function sortAppointments()
+    public function getBusinessHours()
     {
-        usort($this->appointments, function ($a, $b) {
+        return $this->business_hours;
+    }
+
+    /**
+     * @return \Applicazza\Appointed\Period[]
+     */
+    public function getOccupiedSlots()
+    {
+        return $this->occupied_slots;
+    }
+
+    /**
+     * @param array ...$occupied_slots
+     * @return static
+     */
+    public function addOccupiedSlots(... $occupied_slots)
+    {
+        $pending_occupied_slots = [];
+
+        foreach ($occupied_slots as $occupied_slot) {
+
+            if (!is_object($occupied_slot) || get_class($occupied_slot) !== Period::class)
+                throw new InvalidArgumentException();
+
+            $pending_occupied_slots[] = $occupied_slot;
+        }
+
+        if (count($pending_occupied_slots)) {
+
+            $this->occupied_slots = array_merge($this->occupied_slots, $pending_occupied_slots);
+
+            $this->sortOccupiedSlots();
+
+            $this->rebuild();
+
+        }
+
+        return $this;
+    }
+
+    /**
+     * @param \Applicazza\Appointed\Period $period
+     * @return bool
+     */
+    public function isAvailableAt(Period $period)
+    {
+        $this->getSlots()->rewind();
+
+        while ($this->getSlots()->valid()) {
+
+            /** @var \Applicazza\Appointed\Period $slot */
+            $slot = $this->getSlots()->current();
+
+            if ($slot->includes($period))
+                return true;
+
+            $this->getSlots()->next();
+        }
+
+        return false;
+    }
+
+    /**
+     * @param \Applicazza\Appointed\Period $period
+     * @return bool
+     */
+    public function isNotAvailableAt(Period $period)
+    {
+        return !$this->isAvailableAt($period);
+    }
+
+    /**
+     * @param \Applicazza\Appointed\Period $period
+     * @param bool $before
+     * @return \Applicazza\Appointed\Period|bool
+     */
+    public function closestFor(Period $period, $before = false)
+    {
+        $slots = $this->getSlots();
+
+        if ($before)
+            $slots->setIteratorMode(SplDoublyLinkedList::IT_MODE_LIFO);
+
+        $slots->rewind();
+
+        while ($slots->valid()) {
+
+            /** @var \Applicazza\Appointed\Period $slot */
+            $slot = $slots->current();
+
+            if ($before) {
+
+                if ($period->startsAfter($slot) && $slot->canFit($period)) {
+                    return Period::make($slot->getStartsAt(), $period->length());
+                }
+
+            } else {
+
+                if ($slot->startsAfter($period) && $slot->canFit($period)) {
+                    return Period::make($slot->getStartsAt(), $period->length());
+                }
+            }
+
+            $slots->next();
+        }
+
+        return false;
+    }
+
+    /**
+     * @return \SplDoublyLinkedList
+     */
+    protected function getSlots()
+    {
+        return $this->slots;
+    }
+
+    /**
+     *  Sorts business hours
+     */
+    protected function sortBusinessHours()
+    {
+        usort($this->business_hours, function ($a, $b) {
             if ($a == $b) return 0;
             return $a < $b ? -1 : 1;
         });
     }
 
     /**
-     * Calculate empty slots
+     *  Sorts business hours
      */
-    protected function calculateEmptySlots()
+    protected function sortOccupiedSlots()
     {
-        $available_slots = [];
+        usort($this->occupied_slots, function ($a, $b) {
+            if ($a == $b) return 0;
+            return $a < $b ? -1 : 1;
+        });
+    }
 
-        $previous_appointment = null;
+    /**
+     *  Rebuild internal representation
+     */
+    protected function rebuild()
+    {
+        $slots = new SplDoublyLinkedList;
 
-        foreach ($this->appointments as &$appointment) {
-
-            // First element
-            if ($appointment === reset($this->appointments)) {
-
-                if ($appointment->getStartsAt()->notEqualTo($this->getStartsAt())) {
-                    $available_slots[] = new Slot($this->getStartsAt(), $appointment->getStartsAt());
-                }
-
-                $previous_appointment = $appointment;
-                continue;
-            }
-
-            // Last element
-            if ($appointment === end($this->appointments)) {
-
-                if ($previous_appointment->getEndsAt()->notEqualTo($appointment->getStartsAt())) {
-                    $available_slots[] = new Slot($previous_appointment->getEndsAt(), $appointment->getStartsAt());
-                }
-
-                if ($appointment->getEndsAt()->notEqualTo($this->getEndsAt())) {
-                    $available_slots[] = new Slot($appointment->getEndsAt(), $this->getEndsAt());
-                }
-
-                continue;
-            }
-
-            if ($previous_appointment->getEndsAt()->notEqualTo($appointment->getStartsAt())) {
-                $available_slots[] = new Slot($previous_appointment->getEndsAt(), $appointment->getStartsAt());
-            }
-
-            $previous_appointment = &$appointment;
+        foreach ($this->getBusinessHours() as $period) {
+            $slots->push($period);
         }
 
-        $this->available_slots = $available_slots;
-    }
+        foreach ($this->getOccupiedSlots() as $period) {
 
-    /**
-     * @return \Carbon\Carbon
-     */
-    public function getStartsAt()
-    {
-        return $this->starts_at;
-    }
+            $slots->rewind();
 
-    /**
-     * @return \Carbon\Carbon
-     */
-    public function getEndsAt()
-    {
-        return $this->ends_at;
-    }
+            while ($slots->valid()) {
 
-    /**
-     * @param array ...$new_appointments
-     * @return $this
-     * @throws \Applicazza\Appointed\Exceptions\InvalidAppointmentException
-     * @throws \Applicazza\Appointed\Exceptions\OverlappingAppointmentException
-     * @throws \Applicazza\Appointed\Exceptions\OverlappingBusinessDayHoursException
-     */
-    public function addAppointments(... $new_appointments)
-    {
-        $pending_appointments = [];
+                /** @var \Applicazza\Appointed\Period $slot */
+                $slot = $slots->current();
 
-        if (is_array($new_appointments) && is_array($new_appointments[0]))
-            $new_appointments = $new_appointments[0];
+                if ($slot->includes($period)) {
 
-        foreach ($new_appointments as $new_appointment) {
+                    $index = $slots->key();
 
-            if (!is_object($new_appointment) || get_class($new_appointment) !== Appointment::class)
-                throw new InvalidAppointmentException;
+                    $slots->offsetUnset($index);
 
-            if ($new_appointment->isOverlappingWithBusinnessHours($this)) {
-                throw new OverlappingBusinessDayHoursException;
-            }
+                    if ($slot->getStartsAt()->notEqualTo($period->getStartsAt()))
+                        $slots->add($index++, new Period($slot->getStartsAt(), $period->getStartsAt()));
 
-            foreach ($this->appointments as &$appointment) {
-                if ($appointment->isOverlappingWith($new_appointment)) {
-                    throw new OverlappingAppointmentException;
+                    $slots->add($index, new Period($period->getEndsAt(), $slot->getEndsAt()));
+
                 }
-            }
 
-            $pending_appointments[] = $new_appointment;
-        }
+                $slots->next();
 
-        if (count($pending_appointments))
-            $this->appointments = array_merge($this->appointments, $pending_appointments);
-
-        $this->sortAppointments();
-        $this->calculateEmptySlots();
-        return $this;
-    }
-
-    /**
-     * @return \Applicazza\Appointed\Appointment[]
-     */
-    public function getAppointments()
-    {
-        return $this->appointments;
-    }
-
-    /**
-     * @param \Applicazza\Appointed\Appointment $appointment
-     * @return \Applicazza\Appointed\Appointment|null
-     */
-    public function offerAfter(Appointment $appointment)
-    {
-        $offered_appointment = null;
-
-        foreach ($this->getAvailableSlots() as $available_slot) {
-            if ($available_slot->getStartsAt()->lt($appointment->getStartsAt()) || $available_slot->getDuration()->seconds < $appointment->getDuration()->seconds)
-                continue;
-            else {
-                $offered_appointment = Appointment::make($available_slot->getStartsAt(), $appointment->getDuration());
-                break;
             }
         }
 
-        return $offered_appointment;
-    }
-
-    /**
-     * @return \Applicazza\Appointed\Slot[]
-     */
-    public function getAvailableSlots()
-    {
-        return $this->available_slots;
-    }
-
-    /**
-     * @param \Applicazza\Appointed\Appointment $appointment
-     * @return \Applicazza\Appointed\Appointment|null
-     */
-    public function offerBefore(Appointment $appointment)
-    {
-        $available_slots = $this->getAvailableSlots();
-        rsort($available_slots);
-
-        $offered_appointment = null;
-
-        foreach ($available_slots as $available_slot) {
-            if ($available_slot->getStartsAt()->gt($appointment->getStartsAt()) || $available_slot->getDuration()->seconds < $appointment->getDuration()->seconds) {
-                continue;
-            } else {
-                $offered_appointment = Appointment::make($available_slot->getEndsAt()->sub($appointment->getDuration()), $appointment->getDuration());
-                break;
-            }
-        }
-
-        return $offered_appointment;
+        $this->slots = $slots;
     }
 }

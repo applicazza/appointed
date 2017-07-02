@@ -4,8 +4,15 @@ namespace Applicazza\Appointed\Tests\Helpers;
 
 use Carbon\Carbon;
 
+/**
+ * Class EchoHelper
+ * @package Applicazza\Appointed\Tests\Helpers
+ */
 class EchoHelper
 {
+    /**
+     * @param array ...$messages
+     */
     public static function info(... $messages)
     {
         $output = '';

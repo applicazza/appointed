@@ -14,7 +14,14 @@
   },
   "autoload": {
     "psr-4": {
-      "Applicazza\\Appointed\\": "src/",
+      "Applicazza\\Appointed\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "files": [
+      "tests/Helpers/functions.php"
+    ],
+    "psr-4": {
       "Applicazza\\Appointed\\Tests\\": "tests/"
     }
   },

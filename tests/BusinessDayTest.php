@@ -2,113 +2,50 @@
 
 namespace Applicazza\Appointed\Tests;
 
-use Applicazza\Appointed\Appointment;
 use Applicazza\Appointed\BusinessDay;
-use Applicazza\Appointed\Exceptions\OverlappingAppointmentException;
-use Applicazza\Appointed\Exceptions\OverlappingBusinessDayHoursException;
-use Applicazza\Appointed\Tests\Helpers\CarbonHelper as c;
-use Applicazza\Appointed\Tests\Helpers\EchoHelper as e;
+use Applicazza\Appointed\Period;
 use PHPUnit\Framework\TestCase;
+use function \today;
 
 class BusinessDayTest extends TestCase
 {
-    public function testOverlappingAppointment()
+    public function testBusinessDayCanAcceptDesiredPeriod()
     {
-        $day = new BusinessDay(c::today(9), c::today(18));
+        $business_day = $this->createBusinessDay();
 
-        $day->addAppointments(
-            new Appointment(c::today(10), c::today(11)),
-            new Appointment(c::today(9), c::today(9, 30)),
-            new Appointment(c::today(11, 45), c::today(12, 30))
-        );
+        $period = new Period(today(9, 30), today(10, 30));
 
-        $this->assertCount(3, $day->getAppointments());
-
-        $this->expectException(OverlappingAppointmentException::class);
-
-        $day->addAppointment(new Appointment(c::today(9, 30), c::today(10, 30)));
+        $this->assertTrue($business_day->isAvailableAt($period));
     }
 
-    public function testOverlappingBusinessDayHoursException1()
+    public function testBusinessDayCannotAcceptDesiredPeriod()
     {
-        $day = new BusinessDay(c::today(9), c::today(18));
+        $business_day = $this->createBusinessDay();
 
-        $day->addAppointments(
-            new Appointment(c::today(10), c::today(11)),
-            new Appointment(c::today(9), c::today(9, 30)),
-            new Appointment(c::today(11, 45), c::today(12, 30))
-        );
+        $period = new Period(today(10, 30), today(11, 30));
 
-        $this->assertCount(3, $day->getAppointments());
+        $this->assertTrue($business_day->isNotAvailableAt($period));
 
-        $this->expectException(OverlappingBusinessDayHoursException::class);
+        $this->assertEquals(Period::make(today(11, 00), interval(1)), $business_day->closestFor($period));
 
-        $day->addAppointment(Appointment::make(c::today(8, 30), c::interval(0, 20)));
-    }
-
-    public function testOverlappingBusinessDayHoursException2()
-    {
-        $day = new BusinessDay(c::today(9), c::today(18));
-
-        $day->addAppointments(
-            new Appointment(c::today(10), c::today(11)),
-            new Appointment(c::today(9), c::today(9, 30)),
-            new Appointment(c::today(11, 45), c::today(12, 30))
-        );
-
-        $this->assertCount(3, $day->getAppointments());
-
-        $this->expectException(OverlappingBusinessDayHoursException::class);
-
-        $day->addAppointment(Appointment::make(c::today(9, 30), c::interval(10)));
-    }
-
-    public function testOverlappingAppointmentRecommendationAfter()
-    {
-        $day = new BusinessDay(c::today(9), c::today(18));
-
-        $day->addAppointments(
-            new Appointment(c::today(10), c::today(11)),
-            new Appointment(c::today(9), c::today(9, 30)),
-            new Appointment(c::today(11, 45), c::today(12, 30))
-        );
-
-        $this->assertCount(3, $day->getAppointments());
-
-        try {
-            $day->addAppointment(Appointment::make(c::today(11, 30), c::interval(2)));
-        } catch (OverlappingAppointmentException $e) {
-            $appointment = $day->offerAfter(Appointment::make(c::today(11, 30), c::interval(1)));
-            e::info('Offered (after) between', $appointment->getStartsAt(), 'and', $appointment->getEndsAt());
-        }
-    }
-
-    public function testOverlappingAppointmentRecommendationBefore()
-    {
-        $day = new BusinessDay(c::today(9), c::today(18));
-
-        $day->addAppointments(
-            new Appointment(c::today(9), c::today(9, 30)),
-            new Appointment(c::today(9,45), c::today(10, 00)),
-            new Appointment(c::today(10,45), c::today(12)),
-            new Appointment(c::today(12, 30), c::today(12, 45))
-        );
-
-        $this->assertCount(4, $day->getAppointments());
-
-        $desired_appointment = Appointment::make(c::today(11), c::interval(0, 15));
-
-        try {
-            $day->addAppointment($desired_appointment);
-        } catch (OverlappingAppointmentException $e) {
-            $appointment = $day->offerBefore($desired_appointment);
-            if ($appointment)
-                e::info('Offered (before) between', $appointment->getStartsAt(), 'and', $appointment->getEndsAt());
-        }
+        $this->assertEquals(Period::make(today( 9, 30), interval(1)), $business_day->closestFor($period, true));
     }
 
     protected function setUp()
     {
         date_default_timezone_set('Asia/Jerusalem');
+    }
+
+    protected function createBusinessDay()
+    {
+        return (new BusinessDay)
+            ->addBusinessHours(
+                new Period(today( 8, 00), today(14, 00)),
+                new Period(today(16, 00), today(19, 00))
+            )->addOccupiedSlots(
+                new Period(today( 9, 15), today( 9, 30)),
+                new Period(today(10, 30), today(11, 00)),
+                new Period(today(16, 00), today(17, 00))
+            );
     }
 }
