@@ -244,7 +244,7 @@ class BusinessDay
             if ($available_slot->getStartsAt()->gt($appointment->getStartsAt()) || $available_slot->getDuration()->seconds < $appointment->getDuration()->seconds) {
                 continue;
             } else {
-                $offered_appointment = Appointment::make($available_slot->getStartsAt(), $appointment->getDuration());
+                $offered_appointment = Appointment::make($available_slot->getEndsAt()->sub($appointment->getDuration()), $appointment->getDuration());
                 break;
             }
         }

@@ -88,17 +88,20 @@ class BusinessDayTest extends TestCase
         $day = new BusinessDay(c::today(9), c::today(18));
 
         $day->addAppointments(
-            new Appointment(c::today(10, 15), c::today(11)),
-            new Appointment(c::today(9), c::today(9, 15)),
-            new Appointment(c::today(11, 45), c::today(12, 30))
+            new Appointment(c::today(9), c::today(9, 30)),
+            new Appointment(c::today(9,45), c::today(10, 00)),
+            new Appointment(c::today(10,45), c::today(12)),
+            new Appointment(c::today(12, 30), c::today(12, 45))
         );
 
-        $this->assertCount(3, $day->getAppointments());
+        $this->assertCount(4, $day->getAppointments());
+
+        $desired_appointment = Appointment::make(c::today(11), c::interval(0, 15));
 
         try {
-            $day->addAppointment(Appointment::make(c::today(9, 30), c::interval(1)));
+            $day->addAppointment($desired_appointment);
         } catch (OverlappingAppointmentException $e) {
-            $appointment = $day->offerBefore(Appointment::make(c::today(9, 30), c::interval(1)));
+            $appointment = $day->offerBefore($desired_appointment);
             if ($appointment)
                 e::info('Offered (before) between', $appointment->getStartsAt(), 'and', $appointment->getEndsAt());
         }
