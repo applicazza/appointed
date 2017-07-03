@@ -5,7 +5,7 @@ namespace Applicazza\Appointed\Tests;
 use Applicazza\Appointed\BusinessDay;
 use Applicazza\Appointed\Period;
 use PHPUnit\Framework\TestCase;
-use function \today;
+use function today;
 
 class BusinessDayTest extends TestCase
 {

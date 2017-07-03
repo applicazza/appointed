@@ -2,6 +2,7 @@
 
 namespace Applicazza\Appointed;
 
+use Carbon\Carbon;
 use InvalidArgumentException;
 use SplDoublyLinkedList;
 
@@ -161,7 +162,7 @@ class BusinessDay
             if ($before) {
 
                 if ($period->startsAfter($slot) && $slot->canFit($period)) {
-                    return Period::make($slot->getStartsAt(), $period->length());
+                    return new Period((new Carbon($slot->getEndsAt()))->sub($period->length()), $slot->getEndsAt());
                 }
 
             } else {
