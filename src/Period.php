@@ -24,4 +24,12 @@ class Period implements IPeriod
     {
         return new static($starts_at, (new Carbon($starts_at))->add($duration));
     }
+
+    /**
+     * @return string
+     */
+    function __toString()
+    {
+        return sprintf('%s - %s', $this->getStartsAt()->toRfc3339String(), $this->getEndsAt()->toRfc3339String());
+    }
 }

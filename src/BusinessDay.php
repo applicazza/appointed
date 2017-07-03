@@ -151,6 +151,8 @@ class BusinessDay
 
         if ($before)
             $slots->setIteratorMode(SplDoublyLinkedList::IT_MODE_LIFO);
+        else
+            $slots->setIteratorMode(SplDoublyLinkedList::IT_MODE_FIFO);
 
         $slots->rewind();
 
