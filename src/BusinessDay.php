@@ -73,6 +73,20 @@ class BusinessDay
     }
 
     /**
+     * @return string
+     */
+    public function getBusinessHoursAsJson()
+    {
+
+        $business_hours = [];
+        foreach ($this->business_hours as $business_hour) {
+            $business_hours[] = (string) $business_hour;
+        }
+
+        return json_encode($business_hours, JSON_PRETTY_PRINT);
+    }
+
+    /**
      * @return \Applicazza\Appointed\Period[]
      */
     public function getOccupiedSlots()
@@ -85,7 +99,12 @@ class BusinessDay
      */
     public function getOccupiedSlotsAsJson()
     {
-        return json_encode($this->occupied_slots);
+        $occupied_slots = [];
+        foreach ($this->occupied_slots as $occupied_slot) {
+            $occupied_slots[] = (string) $occupied_slot;
+        }
+
+        return json_encode($occupied_slots, JSON_PRETTY_PRINT);
     }
 
     /**
