@@ -81,6 +81,14 @@ class BusinessDay
     }
 
     /**
+     * @return string
+     */
+    public function getOccupiedSlotsAsJson()
+    {
+        return json_encode($this->occupied_slots);
+    }
+
+    /**
      * @param array ...$occupied_slots
      * @return static
      */
