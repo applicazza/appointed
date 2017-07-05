@@ -1,7 +1,6 @@
 # Usage
 
-_In this tutorial function_ ```today($hours = 0, $minutes = 0, $seconds = 0)``` _returns_ ```Carbon``` _date_
-_In this tutorial function_ ```interval($hours = 0, $minutes = 0, $seconds = 0)``` _returns_ ```CarbonInterval```
+[![GitHub tag](https://img.shields.io/github/tag/applicazza/appointed.svg)]()&nbsp;[![license](https://img.shields.io/github/license/applicazza/appointed.svg)]()&nbsp;[![Packagist](https://img.shields.io/packagist/dm/applicazza/appointed.svg)]()
 
 * Do not forget to set up default timezone, i.e.
 
@@ -50,3 +49,10 @@ $available_after = $business_day->closestFor($desired_period);
 
 $available_before = $business_day->closestFor($desired_period, true);
 ```
+
+* To get free slots (an order array of Period objects)
+
+```php
+$free_slots = $business_day->getFreeSlots();
+```
+
