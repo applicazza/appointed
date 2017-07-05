@@ -25,14 +25,14 @@ class BusinessDay
     /**
      * @var \SplDoublyLinkedList
      */
-    protected $slots;
+    protected $free_slots;
 
     /**
      * BusinessDay constructor.
      */
     function __construct()
     {
-        $this->slots = new SplDoublyLinkedList;
+        $this->free_slots = new SplDoublyLinkedList;
     }
 
     /**
@@ -80,7 +80,7 @@ class BusinessDay
 
         $business_hours = [];
         foreach ($this->business_hours as $business_hour) {
-            $business_hours[] = (string) $business_hour;
+            $business_hours[] = (string)$business_hour;
         }
 
         return json_encode($business_hours, JSON_PRETTY_PRINT);
@@ -101,7 +101,7 @@ class BusinessDay
     {
         $occupied_slots = [];
         foreach ($this->occupied_slots as $occupied_slot) {
-            $occupied_slots[] = (string) $occupied_slot;
+            $occupied_slots[] = (string)$occupied_slot;
         }
 
         return json_encode($occupied_slots, JSON_PRETTY_PRINT);
@@ -142,17 +142,17 @@ class BusinessDay
      */
     public function isAvailableAt(Period $period)
     {
-        $this->getSlots()->rewind();
+        $this->getFreeSlots()->rewind();
 
-        while ($this->getSlots()->valid()) {
+        while ($this->getFreeSlots()->valid()) {
 
             /** @var \Applicazza\Appointed\Period $slot */
-            $slot = $this->getSlots()->current();
+            $slot = $this->getFreeSlots()->current();
 
             if ($slot->includes($period))
                 return true;
 
-            $this->getSlots()->next();
+            $this->getFreeSlots()->next();
         }
 
         return false;
@@ -174,7 +174,7 @@ class BusinessDay
      */
     public function closestFor(Period $period, $before = false)
     {
-        $slots = $this->getSlots();
+        $slots = $this->getFreeSlots();
 
         if ($before)
             $slots->setIteratorMode(SplDoublyLinkedList::IT_MODE_LIFO);
@@ -210,9 +210,9 @@ class BusinessDay
     /**
      * @return \SplDoublyLinkedList
      */
-    protected function getSlots()
+    public function getFreeSlots()
     {
-        return $this->slots;
+        return $this->free_slots;
     }
 
     /**
@@ -275,6 +275,6 @@ class BusinessDay
             }
         }
 
-        $this->slots = $slots;
+        $this->free_slots = $slots;
     }
 }
