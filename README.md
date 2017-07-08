@@ -1,58 +1,86 @@
-# Usage
-
 [![GitHub tag](https://img.shields.io/github/tag/applicazza/appointed.svg)]()&nbsp;[![license](https://img.shields.io/github/license/applicazza/appointed.svg)]()&nbsp;[![Packagist](https://img.shields.io/packagist/dm/applicazza/appointed.svg)]()
 
-* Do not forget to set up default timezone, i.e.
+# Installation
+
+```
+composer require applicazza/appointed
+```
+
+# Usage
+
+* Set up default timezone, i.e.
 
 ```php
 date_default_timezone_set('Asia/Jerusalem');
 ```
 
-* Instantiate a business day object and fill it with business hours
+* Instantiate business day
 
 ```php
+use Applicazza\Appointed\BusinessDay;
+
+// ...
 $business_day = new BusinessDay;
-$business_day->addBusinessHours(
-    new Period(today( 8, 00), today(14, 00)),
-    new Period(today(16, 00), today(19, 00))
+```
+
+* Create some operating periods and add them to business day
+
+```php
+use Applicazza\Appointed\Period;
+
+// ...
+
+$period_0900_1400 = Period::make(today( 9, 00), today(14, 00));
+$period_1600_1900 = Period::make(today(16, 00), today(19, 00));
+
+$business_day->addOperatingPeriods(
+    $period_1600_1900,
+    $period_0900_1400
 );
 ```
 
-* Add existing appointments to business day (optional)
+* Create some appointments and add them to business day. If some appointments cannot be added then InvalidArgumentException exception will be thrown and no changes will be applied whatsoever
 
 ```php
-$business_day->addOccupiedSlots(
-    new Period(today( 9, 15), today( 9, 30)),
-    new Period(today(10, 30), today(11, 00)),
-    new Period(today(16, 00), today(17, 00)))
-)
+use Applicazza\Appointed\Appointment;
+
+// ...
+
+$appointment_1100_1130 = Appointment::make(today( 11, 00), today(11, 30));
+$appointment_1200_1330 = Appointment::make(today( 12, 00), today(13, 30));
+
+$business_day->addAppointments(
+    $appointment_1100_1130,
+    $appointment_1200_1330
+);
 ```
 
-* To test whether new appointment will fit
+* To fit previously failed appointment use BusinessDay::fit(Appointment $appointment, $direction = 'forward') that will return either null or recommended Appointment
+```php
+$business_day->fit($appointment_1300_1330, 'backward');
+$business_day->fit($appointment_1300_1330);
+```
+
+* To delete operating period use BusinessDay::deleteOperatingPeriod(Period $period) that will return boolean
+```php
+$business_day->deleteOperatingPeriod($period_0900_1400)
+```
+
+* To get whole day agenda use BusinessDay::getAgenda() that will return array of Period and/or Appointment ordered ascending. Since underlying classes implement JsonSerializable interface this data may be easily encoded to json.
+```php
+$agenda = $business_day->getAgenda();
+// To pretty print results
+echo json_encode($business_day->getAgenda(), JSON_PRETTY_PRINT), PHP_EOL;
+```
+
+## Helpers
 
 ```php
-$desired_period = new Period(today(10, 30), today(11, 30));
-
-$business_day->isAvailableAt($period);
-
-// or
-
-$business_day->isNotAvailableAt($period);
+use function Applicazza\Appointed\interval;
+use function Applicazza\Appointed\today;
+// ...
+interval($hours = 0, $minutes = 0, $seconds = 0);
+today($hours = 0, $minutes = 0, $seconds = 0);
 ```
 
-* To get nearest available slot for an appointment
-
-```php
-$available_after = $business_day->closestFor($desired_period);
-
-// or if you want to get available slot BEFORE
-
-$available_before = $business_day->closestFor($desired_period, true);
-```
-
-* To get free slots (an order array of Period objects)
-
-```php
-$free_slots = $business_day->getFreeSlots();
-```
 

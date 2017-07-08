@@ -2,9 +2,7 @@
 
 namespace Applicazza\Appointed;
 
-use Carbon\Carbon;
 use InvalidArgumentException;
-use SplDoublyLinkedList;
 
 /**
  * Class BusinessDay
@@ -13,268 +11,225 @@ use SplDoublyLinkedList;
 class BusinessDay
 {
     /**
-     * @var \Applicazza\Appointed\Period[]
+     * @var \Applicazza\Appointed\Agenda
      */
-    protected $business_hours = [];
-
-    /**
-     * @var \Applicazza\Appointed\Period[]
-     */
-    protected $occupied_slots = [];
-
-    /**
-     * @var \SplDoublyLinkedList
-     */
-    protected $free_slots;
+    protected $agenda;
 
     /**
      * BusinessDay constructor.
      */
     function __construct()
     {
-        $this->free_slots = new SplDoublyLinkedList;
+        $this->agenda = new Agenda;
     }
 
     /**
-     * @param array ...$business_hours
+     * @param \Applicazza\Appointed\Period[] ...$periods
      * @return static
      */
-    public function addBusinessHours(... $business_hours)
+    public function addOperatingPeriods(Period ...$periods)
     {
-        $pending_business_hours = [];
+        // Make copy of current agenda
 
-        foreach ($business_hours as $business_hour_period) {
+        $agenda = clone $this->agenda;
 
-            if (!is_object($business_hour_period) || get_class($business_hour_period) !== Period::class)
-                throw new InvalidArgumentException();
+        // Sort periods
 
-            $pending_business_hours[] = $business_hour_period;
+        usort($periods, function (Period $a, Period $b) {
+
+            switch (true) {
+                case $a->getStartsAt()->eq($b->getStartsAt()):
+                    return 0;
+                    break;
+                case $a->getStartsAt()->lt($b->getStartsAt()):
+                    return -1;
+                    break;
+                case $a->getStartsAt()->gt($b->getStartsAt()):
+                    return 1;
+                    break;
+            }
+
+            return 0;
+
+        });
+
+        // Iterate over periods
+
+        foreach ($periods as $period) {
+
+            $agenda->rewind();
+
+            if ($agenda->count() === 0) {
+
+                $agenda->push($period);
+
+                continue;
+            }
+
+            $index = 0;
+
+            while ($agenda->valid()) {
+
+                if ($period->isOverlapping($agenda->current()))
+                    throw new InvalidArgumentException;
+
+                if ($period->isAfter($agenda->current())) {
+                    $index = $agenda->key();
+                    break;
+                }
+
+                $agenda->next();
+            }
+
+            $agenda->add(++$index, $period);
+
         }
 
-        if (count($pending_business_hours)) {
+        // If everything is ok update agenda
 
-            $this->business_hours = array_merge($this->business_hours, $pending_business_hours);
-
-            $this->sortBusinessHours();
-
-            $this->rebuild();
-
-        }
+        $this->agenda = $agenda;
 
         return $this;
     }
 
     /**
-     * @return \Applicazza\Appointed\Period[]
+     * @param \Applicazza\Appointed\Appointment[] ...$appointments
+     * @return $this
      */
-    public function getBusinessHours()
+    public function addAppointments(Appointment ...$appointments)
     {
-        return $this->business_hours;
-    }
+        // Make copy of current agenda
 
-    /**
-     * @return string
-     */
-    public function getBusinessHoursAsJson()
-    {
+        $agenda = clone $this->agenda;
 
-        $business_hours = [];
-        foreach ($this->business_hours as $business_hour) {
-            $business_hours[] = (string)$business_hour;
+        // Iterate over appointments
+
+        foreach ($appointments as $appointment) {
+
+            $agenda->rewind();
+
+            while ($agenda->valid()) {
+
+                /** @var \Applicazza\Appointed\Period $current */
+                $current = $agenda->current();
+
+                if ($appointment->isOverlapping($current)) {
+
+                    if ($current instanceof Appointment)
+                        throw new InvalidArgumentException;
+
+                    $periods = $current->split($appointment);
+
+                    $agenda->embed($agenda->key(), $periods);
+
+                    break;
+                }
+
+                $agenda->next();
+            }
+
         }
 
-        return json_encode($business_hours, JSON_PRETTY_PRINT);
-    }
+        // If everything is ok update agenda
 
-    /**
-     * @return \Applicazza\Appointed\Period[]
-     */
-    public function getOccupiedSlots()
-    {
-        return $this->occupied_slots;
-    }
-
-    /**
-     * @return string
-     */
-    public function getOccupiedSlotsAsJson()
-    {
-        $occupied_slots = [];
-        foreach ($this->occupied_slots as $occupied_slot) {
-            $occupied_slots[] = (string)$occupied_slot;
-        }
-
-        return json_encode($occupied_slots, JSON_PRETTY_PRINT);
-    }
-
-    /**
-     * @param array ...$occupied_slots
-     * @return static
-     */
-    public function addOccupiedSlots(... $occupied_slots)
-    {
-        $pending_occupied_slots = [];
-
-        foreach ($occupied_slots as $occupied_slot) {
-
-            if (!is_object($occupied_slot) || get_class($occupied_slot) !== Period::class)
-                throw new InvalidArgumentException();
-
-            $pending_occupied_slots[] = $occupied_slot;
-        }
-
-        if (count($pending_occupied_slots)) {
-
-            $this->occupied_slots = array_merge($this->occupied_slots, $pending_occupied_slots);
-
-            $this->sortOccupiedSlots();
-
-            $this->rebuild();
-
-        }
+        $this->agenda = $agenda;
 
         return $this;
     }
 
     /**
-     * @param \Applicazza\Appointed\Period $period
-     * @return bool
+     * @param \Applicazza\Appointed\Appointment $appointment
+     * @param string $direction 'forward' or 'backward'
+     * @return \Applicazza\Appointed\Appointment|null
      */
-    public function isAvailableAt(Period $period)
+    public function fit(Appointment $appointment, $direction = 'forward')
     {
-        $this->getFreeSlots()->rewind();
+        $agenda = clone $this->agenda;
 
-        while ($this->getFreeSlots()->valid()) {
-
-            /** @var \Applicazza\Appointed\Period $slot */
-            $slot = $this->getFreeSlots()->current();
-
-            if ($slot->includes($period))
-                return true;
-
-            $this->getFreeSlots()->next();
-        }
-
-        return false;
-    }
-
-    /**
-     * @param \Applicazza\Appointed\Period $period
-     * @return bool
-     */
-    public function isNotAvailableAt(Period $period)
-    {
-        return !$this->isAvailableAt($period);
-    }
-
-    /**
-     * @param \Applicazza\Appointed\Period $period
-     * @param bool $before
-     * @return \Applicazza\Appointed\Period|bool
-     */
-    public function closestFor(Period $period, $before = false)
-    {
-        $slots = $this->getFreeSlots();
-
-        if ($before)
-            $slots->setIteratorMode(SplDoublyLinkedList::IT_MODE_LIFO);
+        if ($direction === 'forward')
+            $agenda->setIteratorMode(Agenda::IT_MODE_FIFO);
         else
-            $slots->setIteratorMode(SplDoublyLinkedList::IT_MODE_FIFO);
+            $agenda->setIteratorMode(Agenda::IT_MODE_LIFO);
 
-        $slots->rewind();
+        $agenda->rewind();
 
-        while ($slots->valid()) {
+        while ($agenda->valid()) {
 
-            /** @var \Applicazza\Appointed\Period $slot */
-            $slot = $slots->current();
+            /** @var \Applicazza\Appointed\Period $current */
+            $current = $agenda->current();
 
-            if ($before) {
+            if ($current instanceof Appointment) {
+                $agenda->next();
+                continue;
+            }
 
-                if ($period->startsAfter($slot) && $slot->canFit($period)) {
-                    return new Period((new Carbon($slot->getEndsAt()))->sub($period->length()), $slot->getEndsAt());
+            if ($direction === 'forward') {
+
+                if ($current->isAfter($appointment) && $current->isEqualOrLonger($appointment)) {
+                    return Appointment::makeUsingStartsAtAndDuration($current->getStartsAt(), $appointment->length());
                 }
 
             } else {
 
-                if ($slot->startsAfter($period) && $slot->canFit($period)) {
-                    return Period::make($slot->getStartsAt(), $period->length());
-                }
-            }
-
-            $slots->next();
-        }
-
-        return false;
-    }
-
-    /**
-     * @return \SplDoublyLinkedList
-     */
-    public function getFreeSlots()
-    {
-        return $this->free_slots;
-    }
-
-    /**
-     *  Sorts business hours
-     */
-    protected function sortBusinessHours()
-    {
-        usort($this->business_hours, function ($a, $b) {
-            if ($a == $b) return 0;
-            return $a < $b ? -1 : 1;
-        });
-    }
-
-    /**
-     *  Sorts business hours
-     */
-    protected function sortOccupiedSlots()
-    {
-        usort($this->occupied_slots, function ($a, $b) {
-            if ($a == $b) return 0;
-            return $a < $b ? -1 : 1;
-        });
-    }
-
-    /**
-     *  Rebuild internal representation
-     */
-    protected function rebuild()
-    {
-        $slots = new SplDoublyLinkedList;
-
-        foreach ($this->getBusinessHours() as $period) {
-            $slots->push($period);
-        }
-
-        foreach ($this->getOccupiedSlots() as $period) {
-
-            $slots->rewind();
-
-            while ($slots->valid()) {
-
-                /** @var \Applicazza\Appointed\Period $slot */
-                $slot = $slots->current();
-
-                if ($slot->includes($period)) {
-
-                    $index = $slots->key();
-
-                    $slots->offsetUnset($index);
-
-                    if ($slot->getStartsAt()->notEqualTo($period->getStartsAt()))
-                        $slots->add($index++, new Period($slot->getStartsAt(), $period->getStartsAt()));
-
-                    $slots->add($index, new Period($period->getEndsAt(), $slot->getEndsAt()));
-
+                if ($appointment->isAfter($current) && $current->isEqualOrLonger($appointment)) {
+                    return Appointment::makeUsingEndsAtAndDuration($current->getEndsAt(), $appointment->length());
                 }
 
-                $slots->next();
-
             }
+
+            $agenda->next();
         }
 
-        $this->free_slots = $slots;
+        return null;
+    }
+
+    /**
+     * @return \Applicazza\Appointed\Period[]
+     */
+    public function getAgenda()
+    {
+        $agenda = [];
+
+        $this->agenda->rewind();
+
+        while ($this->agenda->valid()) {
+
+            $agenda[] = $this->agenda->current();
+
+            $this->agenda->next();
+        }
+
+        return $agenda;
+    }
+
+    /**
+     * @param \Applicazza\Appointed\Period $period
+     * @return boolean
+     */
+    public function deleteOperatingPeriod(Period $period)
+    {
+        $agenda = clone $this->agenda;
+
+        for ($agenda->rewind(); $agenda->valid(); $agenda->next()) {
+
+            /** @var \Applicazza\Appointed\Period $current */
+            $current = $agenda->current();
+
+            if ($current->isEnclosing($current) || $current->isTheSameAs($period)) {
+
+                if ($current instanceof Appointment)
+                    return false;
+
+                $agenda->offsetUnset($agenda->key());
+                break;
+            }
+
+            if ($current->isOverlapping($period))
+                return false;
+        }
+
+        $this->agenda = $agenda;
+
+        return true;
     }
 }
