@@ -250,6 +250,7 @@ class BusinessDay
             if ($this->addOperatingPeriods($new_period)) {
                 return true;
             } else {
+                $this->addOperatingPeriods($old_period);
                 return false;
             }
         } else {

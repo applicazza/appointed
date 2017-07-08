@@ -179,7 +179,8 @@ class BusinessDayTest extends TestCase
     {
         $business_day = new BusinessDay;
 
-        $period_0900_1400 = Period::make(today(9, 00), today(14, 00));
+        $period_0800_1400 = Period::make(today( 8, 00), today(14, 00));
+        $period_0900_1400 = Period::make(today( 9, 00), today(14, 00));
         $period_1330_1400 = Period::make(today(13, 30), today(14, 00));
         $period_1330_1430 = Period::make(today(13, 30), today(14, 30));
         $period_1600_1900 = Period::make(today(16, 00), today(19, 00));
@@ -198,10 +199,7 @@ class BusinessDayTest extends TestCase
         );
 
         $this->assertTrue($business_day->editOperatingPeriod($period_1330_1400, $period_1330_1430));
-
-
-
-        echo json_encode($business_day->getAgenda(), JSON_PRETTY_PRINT);
+        $this->assertFalse($business_day->editOperatingPeriod($period_0900_1400, $period_0800_1400));
     }
 
     protected function setUp()
