@@ -55,23 +55,23 @@ $business_day->addAppointments(
 );
 ```
 
-* To fit previously failed appointment use ```php BusinessDay::fit(Appointment $appointment, $direction = 'forward')``` that will return either null or recommended Appointment
+* To fit previously failed appointment use ```BusinessDay::fit(Appointment $appointment, $direction = 'forward')``` that will return either null or recommended Appointment
 ```php
 $business_day->fit($appointment_1300_1330, 'backward');
 $business_day->fit($appointment_1300_1330);
 ```
 
-* To delete operating period use ```php BusinessDay::deleteOperatingPeriod(Period $period)``` that will return boolean
+* To delete operating period use ```BusinessDay::deleteOperatingPeriod(Period $period)``` that will return boolean
 ```php
 $business_day->deleteOperatingPeriod($period_0900_1400)
 ```
 
-* To edit operating period use ```php BusinessDay::editOperatingPeriod(Period $old_period, Period $new_period)``` that will return boolean
+* To edit operating period use ```BusinessDay::editOperatingPeriod(Period $old_period, Period $new_period)``` that will return boolean
 ```php
 $business_day->editOperatingPeriod($period_1330_1400, $period_1330_1430)
 ```
 
-* To get whole day agenda use ```php BusinessDay::getAgenda()``` that will return array of Period and/or Appointment ordered ascending. Since underlying classes implement JsonSerializable interface this data may be easily encoded to json.
+* To get whole day agenda use ```BusinessDay::getAgenda()``` that will return array of Period and/or Appointment ordered ascending. Since underlying classes implement JsonSerializable interface this data may be easily encoded to json.
 ```php
 $agenda = $business_day->getAgenda();
 // To pretty print results
