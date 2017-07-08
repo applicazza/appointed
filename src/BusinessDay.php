@@ -2,8 +2,6 @@
 
 namespace Applicazza\Appointed;
 
-use InvalidArgumentException;
-
 /**
  * Class BusinessDay
  * @package Applicazza\Appointed
@@ -25,7 +23,7 @@ class BusinessDay
 
     /**
      * @param \Applicazza\Appointed\Period[] ...$periods
-     * @return static
+     * @return boolean
      */
     public function addOperatingPeriods(Period ...$periods)
     {
@@ -71,7 +69,7 @@ class BusinessDay
             while ($agenda->valid()) {
 
                 if ($period->isOverlapping($agenda->current()))
-                    throw new InvalidArgumentException;
+                    return false;
 
                 if ($period->isAfter($agenda->current())) {
                     $index = $agenda->key();
@@ -89,12 +87,12 @@ class BusinessDay
 
         $this->agenda = $agenda;
 
-        return $this;
+        return true;
     }
 
     /**
      * @param \Applicazza\Appointed\Appointment[] ...$appointments
-     * @return $this
+     * @return boolean
      */
     public function addAppointments(Appointment ...$appointments)
     {
@@ -106,27 +104,30 @@ class BusinessDay
 
         foreach ($appointments as $appointment) {
 
-            $agenda->rewind();
+            $is_inserted = false;
 
-            while ($agenda->valid()) {
+            for ($agenda->rewind(); $agenda->valid(); $agenda->next()) {
 
                 /** @var \Applicazza\Appointed\Period $current */
                 $current = $agenda->current();
 
-                if ($appointment->isOverlapping($current)) {
+                if ($appointment->isEnclosedBy($current)) {
 
                     if ($current instanceof Appointment)
-                        throw new InvalidArgumentException;
+                        return false;
 
                     $periods = $current->split($appointment);
 
                     $agenda->embed($agenda->key(), $periods);
 
+                    $is_inserted = true;
+
                     break;
                 }
-
-                $agenda->next();
             }
+
+            if (!$is_inserted)
+                return false;
 
         }
 
@@ -134,7 +135,7 @@ class BusinessDay
 
         $this->agenda = $agenda;
 
-        return $this;
+        return true;
     }
 
     /**
@@ -210,26 +211,49 @@ class BusinessDay
     {
         $agenda = clone $this->agenda;
 
+        $is_deleted = false;
+
         for ($agenda->rewind(); $agenda->valid(); $agenda->next()) {
 
             /** @var \Applicazza\Appointed\Period $current */
             $current = $agenda->current();
 
-            if ($current->isEnclosing($current) || $current->isTheSameAs($period)) {
+            if ($current->isTheSameAs($period)) {
 
                 if ($current instanceof Appointment)
                     return false;
 
                 $agenda->offsetUnset($agenda->key());
+
+                $is_deleted = true;
+
                 break;
             }
-
-            if ($current->isOverlapping($period))
-                return false;
         }
+
+        if (!$is_deleted)
+            return false;
 
         $this->agenda = $agenda;
 
         return true;
+    }
+
+    /**
+     * @param \Applicazza\Appointed\Period $old_period
+     * @param \Applicazza\Appointed\Period $new_period
+     * @return bool
+     */
+    public function editOperatingPeriod(Period $old_period, Period $new_period)
+    {
+        if ($this->deleteOperatingPeriod($old_period)) {
+            if ($this->addOperatingPeriods($new_period)) {
+                return true;
+            } else {
+                return false;
+            }
+        } else {
+            return false;
+        }
     }
 }

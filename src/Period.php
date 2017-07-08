@@ -208,13 +208,13 @@ class Period implements IPeriod, JsonSerializable
     {
         $periods = [];
 
-        if ($this->getStartsAt()->ne($period->getStartsAt())) {
+        if ($this->getStartsAt()->lt($period->getStartsAt())) {
             $periods[] = Period::make($this->getStartsAt(), $period->getStartsAt());
         }
 
         $periods[] = $period;
 
-        if ($period->getEndsAt()->ne($this->getEndsAt())) {
+        if ($this->getEndsAt()->gt($period->getEndsAt())) {
             $periods[] = Period::make($period->getEndsAt(), $this->getEndsAt());
         }
 

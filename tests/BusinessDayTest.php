@@ -5,32 +5,30 @@ namespace Applicazza\Appointed\Tests;
 use Applicazza\Appointed\Appointment;
 use Applicazza\Appointed\BusinessDay;
 use Applicazza\Appointed\Period;
-use function Applicazza\Appointed\today;
-use InvalidArgumentException;
 use PHPUnit\Framework\TestCase;
+use function Applicazza\Appointed\today;
 
 class BusinessDayTest extends TestCase
 {
     public function testInvalidOperatingPeriods()
     {
-        $this->expectException(InvalidArgumentException::class);
-
         $business_day = new BusinessDay;
 
-        $period_0900_1400 = Period::make(today( 9, 00), today(14, 00));
+        $period_0900_1400 = Period::make(today(9, 00), today(14, 00));
         $period_1300_1900 = Period::make(today(13, 00), today(19, 00));
 
-        $business_day->addOperatingPeriods(
-            $period_1300_1900,
-            $period_0900_1400
-        );
+        $this->assertFalse(
+            $business_day->addOperatingPeriods(
+                $period_1300_1900,
+                $period_0900_1400
+            ));
     }
 
     public function testValidOperatingPeriods()
     {
         $business_day = new BusinessDay;
 
-        $period_0900_1400 = Period::make(today( 9, 00), today(14, 00));
+        $period_0900_1400 = Period::make(today(9, 00), today(14, 00));
         $period_1600_1900 = Period::make(today(16, 00), today(19, 00));
 
         $business_day->addOperatingPeriods(
@@ -45,7 +43,7 @@ class BusinessDayTest extends TestCase
     {
         $business_day = new BusinessDay;
 
-        $period_0900_1400 = Period::make(today( 9, 00), today(14, 00));
+        $period_0900_1400 = Period::make(today(9, 00), today(14, 00));
         $period_1600_1900 = Period::make(today(16, 00), today(19, 00));
 
         $business_day->addOperatingPeriods(
@@ -53,8 +51,8 @@ class BusinessDayTest extends TestCase
             $period_0900_1400
         );
 
-        $appointment_1100_1130 = Appointment::make(today( 11, 00), today(11, 30));
-        $appointment_1200_1330 = Appointment::make(today( 12, 00), today(13, 30));
+        $appointment_1100_1130 = Appointment::make(today(11, 00), today(11, 30));
+        $appointment_1200_1330 = Appointment::make(today(12, 00), today(13, 30));
 
         $business_day->addAppointments(
             $appointment_1100_1130,
@@ -75,7 +73,7 @@ class BusinessDayTest extends TestCase
     {
         $business_day = new BusinessDay;
 
-        $period_0900_1400 = Period::make(today( 9, 00), today(14, 00));
+        $period_0900_1400 = Period::make(today(9, 00), today(14, 00));
         $period_1600_1900 = Period::make(today(16, 00), today(19, 00));
 
         $business_day->addOperatingPeriods(
@@ -83,8 +81,8 @@ class BusinessDayTest extends TestCase
             $period_0900_1400
         );
 
-        $appointment_0900_1130 = Appointment::make(today(  9, 00), today(11, 30));
-        $appointment_1200_1330 = Appointment::make(today( 12, 00), today(13, 30));
+        $appointment_0900_1130 = Appointment::make(today(9, 00), today(11, 30));
+        $appointment_1200_1330 = Appointment::make(today(12, 00), today(13, 30));
 
         $business_day->addAppointments(
             $appointment_0900_1130,
@@ -102,11 +100,9 @@ class BusinessDayTest extends TestCase
 
     public function testInvalidAppointments()
     {
-        $this->expectException(InvalidArgumentException::class);
-
         $business_day = new BusinessDay;
 
-        $period_0900_1400 = Period::make(today( 9, 00), today(14, 00));
+        $period_0900_1400 = Period::make(today(9, 00), today(14, 00));
         $period_1600_1900 = Period::make(today(16, 00), today(19, 00));
 
         $business_day->addOperatingPeriods(
@@ -114,13 +110,18 @@ class BusinessDayTest extends TestCase
             $period_0900_1400
         );
 
-        $appointment_1100_1130 = Appointment::make(today( 11, 00), today(11, 30));
-        $appointment_1000_1330 = Appointment::make(today( 10, 00), today(13, 30));
+        $appointment_1100_1130 = Appointment::make(today(11, 00), today(11, 30));
+        $appointment_1000_1330 = Appointment::make(today(10, 00), today(13, 30));
 
-        $business_day->addAppointments(
-            $appointment_1100_1130,
-            $appointment_1000_1330
-        );
+        $this->assertTrue(
+            $business_day->addAppointments(
+                $appointment_1100_1130
+            ));
+
+        $this->assertFalse(
+            $business_day->addAppointments(
+                $appointment_1000_1330
+            ));
     }
 
     public function testFit()
@@ -172,6 +173,35 @@ class BusinessDayTest extends TestCase
         $this->assertTrue($business_day->deleteOperatingPeriod($period_1600_1900));
         $this->assertFalse($business_day->deleteOperatingPeriod($period_0900_1400));
         $this->assertTrue($business_day->deleteOperatingPeriod($period_1330_1400));
+    }
+
+    public function testEditOperatingPeriod()
+    {
+        $business_day = new BusinessDay;
+
+        $period_0900_1400 = Period::make(today(9, 00), today(14, 00));
+        $period_1330_1400 = Period::make(today(13, 30), today(14, 00));
+        $period_1330_1430 = Period::make(today(13, 30), today(14, 30));
+        $period_1600_1900 = Period::make(today(16, 00), today(19, 00));
+
+        $business_day->addOperatingPeriods(
+            $period_1600_1900,
+            $period_0900_1400
+        );
+
+        $appointment_0900_1130 = Appointment::make(today( 9, 00), today(11, 30));
+        $appointment_1200_1330 = Appointment::make(today(12, 00), today(13, 30));
+
+        $business_day->addAppointments(
+            $appointment_0900_1130,
+            $appointment_1200_1330
+        );
+
+        $this->assertTrue($business_day->editOperatingPeriod($period_1330_1400, $period_1330_1430));
+
+
+
+        echo json_encode($business_day->getAgenda(), JSON_PRETTY_PRINT);
     }
 
     protected function setUp()
