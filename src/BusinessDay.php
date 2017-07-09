@@ -166,13 +166,13 @@ class BusinessDay
 
             if ($direction === 'forward') {
 
-                if ($current->isAfter($appointment) && $current->isEqualOrLonger($appointment)) {
+                if ($current->isLaterThan($appointment) && $current->isEqualOrLonger($appointment)) {
                     return Appointment::makeUsingStartsAtAndDuration($current->getStartsAt(), $appointment->length());
                 }
 
             } else {
 
-                if ($appointment->isAfter($current) && $current->isEqualOrLonger($appointment)) {
+                if ($appointment->isLaterThan($current) && $current->isEqualOrLonger($appointment)) {
                     return Appointment::makeUsingEndsAtAndDuration($current->getEndsAt(), $appointment->length());
                 }
 

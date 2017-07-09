@@ -55,7 +55,7 @@ class Period implements IPeriod, JsonSerializable
      */
     public static function makeUsingStartsAtAndDuration(Carbon $starts_at, CarbonInterval $duration)
     {
-        $ends_at = (clone $starts_at)->add($duration);
+        $ends_at = $starts_at->copy()->add($duration);
 
         if (!$starts_at || !$ends_at || $ends_at->lte($starts_at))
             throw new InvalidArgumentException;
@@ -74,7 +74,7 @@ class Period implements IPeriod, JsonSerializable
      */
     public static function makeUsingEndsAtAndDuration(Carbon $ends_at, CarbonInterval $duration)
     {
-        $starts_at = (clone $ends_at)->sub($duration);
+        $starts_at = $ends_at->copy()->sub($duration);
 
         if (!$starts_at || !$ends_at || $ends_at->lte($starts_at))
             throw new InvalidArgumentException;
@@ -163,6 +163,15 @@ class Period implements IPeriod, JsonSerializable
     public function isIntersecting(IPeriod $period)
     {
         return $this->getStartsAt()->lte($period->getEndsAt()) && $period->getStartsAt()->lte($this->getEndsAt());
+    }
+
+    /**
+     * @param \Applicazza\Appointed\Common\IPeriod $period
+     * @return bool
+     */
+    public function isLaterThan(IPeriod $period)
+    {
+        return $this->getStartsAt()->gte($period->getStartsAt());
     }
 
     /**

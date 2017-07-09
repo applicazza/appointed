@@ -114,4 +114,10 @@ interface IPeriod
      * @return \Carbon\CarbonInterval
      */
     public function length();
+
+    /**
+     * @param \Applicazza\Appointed\Common\IPeriod $period
+     * @return bool
+     */
+    public function isLaterThan(IPeriod $period);
 }
