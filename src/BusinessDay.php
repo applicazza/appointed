@@ -257,4 +257,72 @@ class BusinessDay
             return false;
         }
     }
+
+    /**
+     * @param \Applicazza\Appointed\Appointment[] ...$appointments
+     * @return bool
+     */
+    public function deleteAppointments(Appointment ...$appointments)
+    {
+        // Make copy of current agenda
+
+        $agenda = clone $this->agenda;
+
+        $is_deleted = true;
+
+        foreach ($appointments as $appointment) {
+
+            $is_deleted = false;
+
+            for ($agenda->rewind(); $agenda->valid(); $agenda->next()) {
+
+                /** @var \Applicazza\Appointed\Period $current */
+                $current = $agenda->current();
+
+                if ($current instanceof Appointment && $current->isTheSameAs($appointment)) {
+
+                    $index = $agenda->key();
+
+                    $current = Period::make($current->getStartsAt(), $current->getEndsAt());
+
+                    // check before
+
+                    if ($agenda->offsetExists($index - 1) && !($agenda->offsetGet($index - 1) instanceof Appointment) && $current->isIntersecting($agenda->offsetGet($index - 1))) {
+                        // merge and delete
+                        $current = $current->merge($agenda->offsetGet($index - 1));
+                        $agenda->offsetSet($index, $current);
+                        $agenda->offsetUnset($index - 1);
+                        $index = $index - 1;
+
+                    } else {
+                        $agenda->offsetSet($index, $current);
+                    }
+
+                    // check after
+
+                    if ($agenda->offsetExists($index + 1) && !($agenda->offsetGet($index + 1) instanceof Appointment) &&  $current->isIntersecting($agenda->offsetGet($index + 1))) {
+                        // merge and delete
+                        $current = $current->merge($agenda->offsetGet($index + 1));
+                        $agenda->offsetSet($index, $current);
+                        $agenda->offsetUnset($index + 1);
+                    } else {
+                        $agenda->offsetSet($index, $current);
+                    }
+
+                    $is_deleted = true;
+
+                    break;
+                }
+            }
+        }
+
+        if (!$is_deleted)
+            return false;
+
+        // If everything is ok update agenda
+
+        $this->agenda = $agenda;
+
+        return true;
+    }
 }

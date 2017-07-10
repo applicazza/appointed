@@ -210,10 +210,10 @@ class Period implements IPeriod, JsonSerializable
     }
 
     /**
-     * @param \Applicazza\Appointed\Period $period
+     * @param \Applicazza\Appointed\Common\IPeriod $period
      * @return \Applicazza\Appointed\Period[]
      */
-    public function split(Period $period)
+    public function split(IPeriod $period)
     {
         $periods = [];
 
@@ -228,6 +228,18 @@ class Period implements IPeriod, JsonSerializable
         }
 
         return $periods;
+    }
+
+    /**
+     * @param \Applicazza\Appointed\Common\IPeriod $period
+     * @return \Applicazza\Appointed\Period|\Applicazza\Appointed\Appointment|bool
+     */
+    public function merge(IPeriod $period)
+    {
+        if (!$this->isIntersecting($period))
+            return false;
+
+        return static::make($this->getStartsAt()->min($period->getStartsAt()), $this->getEndsAt()->max($period->getEndsAt()));
     }
 
     /**

@@ -232,6 +232,29 @@ class BusinessDayTest extends TestCase
         $this->assertEquals(Appointment::make(today(11, 45), today(12, 07)), $business_day->fit($appointment_1130_1152));
     }
 
+    public function testDeleteAppointments()
+    {
+        $business_day = new BusinessDay;
+
+        $period_0900_1400 = Period::make(today(9, 00), today(14, 00));
+        $period_1600_1900 = Period::make(today(16, 00), today(19, 00));
+
+        $business_day->addOperatingPeriods(
+            $period_1600_1900,
+            $period_0900_1400
+        );
+
+        $appointment_1100_1130 = Appointment::make(today(11, 00), today(11, 30));
+        $appointment_1200_1330 = Appointment::make(today(12, 00), today(13, 30));
+
+        $business_day->addAppointments(
+            $appointment_1100_1130,
+            $appointment_1200_1330
+        );
+
+        $this->assertTrue($business_day->deleteAppointments($appointment_1100_1130));
+    }
+
     protected function setUp()
     {
         date_default_timezone_set('Asia/Jerusalem');

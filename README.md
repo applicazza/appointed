@@ -61,6 +61,11 @@ $business_day->fit($appointment_1300_1330, 'backward');
 $business_day->fit($appointment_1300_1330);
 ```
 
+* To delete appointment(s) use ```BusinessDay::deleteAppointments(Appointment ...$appointment)``` that will return boolean
+```php
+$business_day->deleteAppointments($appointment_1300_1330);
+```
+
 * To delete operating period use ```BusinessDay::deleteOperatingPeriod(Period $period)``` that will return boolean
 ```php
 $business_day->deleteOperatingPeriod($period_0900_1400)

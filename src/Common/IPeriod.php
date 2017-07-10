@@ -99,10 +99,10 @@ interface IPeriod
     public function isEnclosedBy(IPeriod $period);
 
     /**
-     * @param \Applicazza\Appointed\Period $period
+     * @param \Applicazza\Appointed\Common\IPeriod $period
      * @return \Applicazza\Appointed\Period[]
      */
-    public function split(Period $period);
+    public function split(IPeriod $period);
 
     /**
      * @param \Applicazza\Appointed\Common\IPeriod $period
@@ -120,4 +120,10 @@ interface IPeriod
      * @return bool
      */
     public function isLaterThan(IPeriod $period);
+
+    /**
+     * @param \Applicazza\Appointed\Common\IPeriod $period
+     * @return \Applicazza\Appointed\Period|\Applicazza\Appointed\Appointment|bool
+     */
+    public function merge(IPeriod $period);
 }
