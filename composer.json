@@ -1,5 +1,5 @@
 {
-  "name": "vijKlim/appointed",
+  "name": "vij-klim/appointed",
   "description": "Check whether required appointment slot is open or offer closest available one",
   "minimum-stability": "dev",
   "prefer-stable": true,
