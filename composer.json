@@ -1,13 +1,13 @@
 {
-  "name": "applicazza/appointed",
+  "name": "vijKlim/appointed",
   "description": "Check whether required appointment slot is open or offer closest available one",
   "minimum-stability": "dev",
   "prefer-stable": true,
   "license": "MIT",
   "authors": [
     {
-      "name": "Artyom S",
-      "email": "artyom@applicazza.com"
+      "name": "Vitalii K",
+      "email": "vij.klimenko@gmail.com"
     }
   ],
   "require": {
